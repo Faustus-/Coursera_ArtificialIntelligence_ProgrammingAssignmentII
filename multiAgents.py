@@ -68,23 +68,28 @@ class ReflexAgent(Agent):
     newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
     "*** YOUR CODE HERE ***"
+    "initialize score"
     score = successorGameState.getScore()
-    newFood = successorGameState.getFood()
-    oldGhostStates = currentGameState.getGhostStates()
-    oldScaredTimes = [ghostState.scaredTimer for ghostState in oldGhostStates]
+    "pacman"
+    pacPosition = successorGameState.getPacmanPosition()
+    "food"
+    foodPositions = successorGameState.getFood().asList()
+    foodDistances = [util.manhattanDistance(pacPosition, food) for food in foodPositions]
+    "ghosts"
+    ghostPositions = successorGameState.getGhostPositions()
+    ghostStates = successorGameState.getGhostStates()
+    ghostDistances = [util.manhattanDistance(pacPosition, ghost) for ghost in ghostPositions]
     
-    if len(newFood) < len(oldFood):
-        score = score + 1
-    
-    newGhostPos = successorGameState.getGhostPositions()
-    newGhostDist = [util.manhattanDistance(newPos, ghost) for ghost in newGhostPos]
-    oldGhostPos = currentGameState.getGhostPositions()
-    oldGhostDist = [util.manhattanDistance(currentGameState.getPacmanPosition(), ghost) for ghost in oldGhostPos]
-    newClosestGhostDist = min(newGhostDist)
-    oldClosestGhostDist = min(oldGhostDist)
-    
-    score = score + 5 * (newClosestGhostDist - oldClosestGhostDist)
-    
+    closestGhostDistance = min(ghostDistances)
+    if len(foodDistances) > 0:
+        closestFoodDistance = min(foodDistances)
+    else:
+        closestFoodDistance = -10
+        
+    if closestGhostDistance <= 1:
+        score = score - 100 * closestGhostDistance
+    else:
+        score = score + 2 * closestGhostDistance - 5 * closestFoodDistance
     return score
 
 def scoreEvaluationFunction(currentGameState):
@@ -230,7 +235,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
                 if moveScore> bestScore:
                     bestMove = move
                     bestScore = moveScore
-                if bestScore > beta or bestScore < alpha:
+                if bestScore > beta:
                     break
                 alpha = max(alpha, bestScore)
             return (bestScore, bestMove) 
@@ -260,7 +265,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
                 if moveScore < bestScore:
                     bestMove = move
                     bestScore = moveScore
-                if bestScore > beta or bestScore < alpha:
+                if bestScore < alpha:
                     break
                 beta = min(beta, bestScore)
             return (bestScore, bestMove)
@@ -330,15 +335,15 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
             totalScore = 0
             bestMove = random.sample(moves, 1)[0]
             for move in moves:
+                p = 1.0 / len(moves)
                 if numGhosts == 1:
                     "compete with pacman agent"
                     moveScore = (pacmanAction(gameState.generateSuccessor(numAgents - numGhosts, move), deepCounter-1, move))[0] 
                 else:
                     "cooperate with other ghost agents"
                     moveScore = (ghostAction(gameState.generateSuccessor(numAgents - numGhosts, move), deepCounter, move, numGhosts-1))[0] 
-                totalScore = totalScore + moveScore
-            bestScore = bestScore * 1.0 / len(moves)
-            return (bestScore, bestMove)
+                totalScore = totalScore + p * moveScore
+            return (totalScore, bestMove)
         
     if self.index == 0:
         bestAction = (pacmanAction(gameState, self.depth, ""))[1]
@@ -348,7 +353,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
     
     "util.raiseNotDefined()"
 
-def betterEvaluationFunction(self, currentGameState, action):
+def betterEvaluationFunction(currentGameState):
   """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
     evaluation function (question 5).
@@ -356,24 +361,33 @@ def betterEvaluationFunction(self, currentGameState, action):
     DESCRIPTION: <write something here so we know what you did>
   """
   "*** YOUR CODE HERE ***"
-  successorGameState = currentGameState.generatePacmanSuccessor(action)
-  newPos = successorGameState.getPacmanPosition()
-  oldFood = currentGameState.getFood()
-  newGhostStates = successorGameState.getGhostStates()
-  newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
-  score = successorGameState.getScore()
-  newFood = successorGameState.getFood()
-  oldGhostStates = currentGameState.getGhostStates()
-  oldScaredTimes = [ghostState.scaredTimer for ghostState in oldGhostStates]
-  if len(newFood) < len(oldFood):
-      score = score + 1
-  newGhostPos = successorGameState.getGhostPositions()
-  newGhostDist = [util.manhattanDistance(newPos, ghost) for ghost in newGhostPos]
-  oldGhostPos = currentGameState.getGhostPositions()
-  oldGhostDist = [util.manhattanDistance(currentGameState.getPacmanPosition(), ghost) for ghost in oldGhostPos]
-  newClosestGhostDist = min(newGhostDist)
-  oldClosestGhostDist = min(oldGhostDist)
-  score = score + 5 * (newClosestGhostDist - oldClosestGhostDist)
+  
+  "initialize score"
+  score = currentGameState.getScore()
+  "pacman"
+  pacPosition = currentGameState.getPacmanPosition()
+  
+  "food"
+  foodPositions = currentGameState.getFood().asList()
+  foodDistances = [util.manhattanDistance(pacPosition, food) for food in foodPositions]
+  
+  "ghosts"
+  ghostPositions = currentGameState.getGhostPositions()
+  ghostStates = currentGameState.getGhostStates()
+  ghostDistances = [util.manhattanDistance(pacPosition, ghost) for ghost in ghostPositions]
+  
+  
+  closestGhostDistance = min(ghostDistances)
+  if len(foodDistances) > 0:
+      closestFoodDistance = min(foodDistances)
+  else:
+      closestFoodDistance = -10
+  
+  if closestGhostDistance <= 1:
+      score = score - 100 * closestGhostDistance
+  else:
+      score = score + 2 * closestGhostDistance - closestFoodDistance
+  
   return score
   "util.raiseNotDefined()"
 
