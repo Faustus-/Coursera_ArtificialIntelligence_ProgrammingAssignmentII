@@ -68,7 +68,24 @@ class ReflexAgent(Agent):
     newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
     "*** YOUR CODE HERE ***"
-    return successorGameState.getScore()
+    score = successorGameState.getScore()
+    newFood = successorGameState.getFood()
+    oldGhostStates = currentGameState.getGhostStates()
+    oldScaredTimes = [ghostState.scaredTimer for ghostState in oldGhostStates]
+    
+    if len(newFood) < len(oldFood):
+        score = score + 1
+    
+    newGhostPos = successorGameState.getGhostPositions()
+    newGhostDist = [util.manhattanDistance(newPos, ghost) for ghost in newGhostPos]
+    oldGhostPos = currentGameState.getGhostPositions()
+    oldGhostDist = [util.manhattanDistance(currentGameState.getPacmanPosition(), ghost) for ghost in oldGhostPos]
+    newClosestGhostDist = min(newGhostDist)
+    oldClosestGhostDist = min(oldGhostDist)
+    
+    score = score + 5 * (newClosestGhostDist - oldClosestGhostDist)
+    
+    return score
 
 def scoreEvaluationFunction(currentGameState):
   """
@@ -126,7 +143,62 @@ class MinimaxAgent(MultiAgentSearchAgent):
         Returns the total number of agents in the game
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    
+    """check the max score in the next step for pacman agent.
+    parameters: gameState, deepCounter, lastMove
+    return: (bestScore, bestMove)
+    """
+    def pacmanAction(gameState, deepCounter, lastMove):
+        "if current state is win or lose or reach the deepest layer, return"
+        if gameState.isWin() or gameState.isLose() or deepCounter == 0:
+            return (self.evaluationFunction(gameState), lastMove)
+        else:
+            "initialize best score = -inf"
+            bestScore = float('inf') * (-1)
+            "get all legal moves"
+            moves = gameState.getLegalActions(self.index)
+            "find bestScore and corresponding bestMove"
+            for move in moves:
+                moveScore = (ghostAction(gameState.generateSuccessor(self.index, move), deepCounter, move, gameState.getNumAgents()-1))[0] 
+                if moveScore> bestScore:
+                    bestMove = move
+                    bestScore = moveScore
+            return (bestScore, bestMove) 
+
+    """check the min score in the next step around all ghost agents.
+    parameters: gameState, deepCounter, lastMove, numGhosts
+    return: (bestScore, bestMove)
+    """
+    def ghostAction(gameState, deepCounter, lastMove, numGhosts):
+        "if current state is win or lose or reach the deepest layer, return"
+        if gameState.isLose() or gameState.isWin() or deepCounter == 0:
+            return (self.evaluationFunction(gameState), lastMove)
+        else:
+            "initialize best score = inf"
+            bestScore = float('inf')
+            numAgents = gameState.getNumAgents()
+            "get legal actions for current ghost agent"
+            moves = gameState.getLegalActions(numAgents - numGhosts)
+            "find bestScore and corresponding bestMove for the current ghost agent"
+            for move in moves:
+                if numGhosts == 1:
+                    "compete with pacman agent"
+                    moveScore = (pacmanAction(gameState.generateSuccessor(numAgents - numGhosts, move), deepCounter-1, move))[0] 
+                else:
+                    "cooperate with other ghost agents"
+                    moveScore = (ghostAction(gameState.generateSuccessor(numAgents - numGhosts, move), deepCounter, move, numGhosts-1))[0] 
+                if moveScore < bestScore:
+                    bestMove = move
+                    bestScore = moveScore
+            return (bestScore, bestMove)
+        
+    if self.index == 0:
+        bestAction = (pacmanAction(gameState, self.depth, ""))[1]
+    else:
+        bestAction = (ghostAction(gameState, self.depth, ""))[1]
+    return bestAction
+
+    # util.raiseNotDefined()
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
   """
@@ -138,7 +210,72 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
       Returns the minimax action using self.depth and self.evaluationFunction
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    
+    """check the max score in the next step for pacman agent.
+    parameters: gameState, deepCounter, lastMove
+    return: (bestScore, bestMove)
+    """
+    def pacmanAction(gameState, deepCounter, lastMove, alpha, beta):
+        "if current state is win or lose or reach the deepest layer, return"
+        if gameState.isWin() or gameState.isLose() or deepCounter == 0:
+            return (self.evaluationFunction(gameState), lastMove)
+        else:
+            "initialize best score = -inf"
+            bestScore = float('inf') * (-1)
+            "get all legal moves"
+            moves = gameState.getLegalActions(self.index)
+            "find bestScore and corresponding bestMove"
+            for move in moves:
+                moveScore = (ghostAction(gameState.generateSuccessor(self.index, move), deepCounter, move, gameState.getNumAgents()-1, alpha, beta))[0] 
+                if moveScore> bestScore:
+                    bestMove = move
+                    bestScore = moveScore
+                if bestScore > beta or bestScore < alpha:
+                    break
+                alpha = max(alpha, bestScore)
+            return (bestScore, bestMove) 
+
+    """check the min score in the next step around all ghost agents.
+    parameters: gameState, deepCounter, lastMove, numGhosts
+    return: (bestScore, bestMove)
+    """
+    def ghostAction(gameState, deepCounter, lastMove, numGhosts, alpha, beta):
+        "if current state is win or lose or reach the deepest layer, return"
+        if gameState.isLose() or gameState.isWin() or deepCounter == 0:
+            return (self.evaluationFunction(gameState), lastMove)
+        else:
+            "initialize best score = inf"
+            bestScore = float('inf')
+            numAgents = gameState.getNumAgents()
+            "get legal actions for current ghost agent"
+            moves = gameState.getLegalActions(numAgents - numGhosts)
+            "find bestScore and corresponding bestMove for the current ghost agent"
+            for move in moves:
+                if numGhosts == 1:
+                    "compete with pacman agent"
+                    moveScore = (pacmanAction(gameState.generateSuccessor(numAgents - numGhosts, move), deepCounter-1, move, alpha, beta))[0] 
+                else:
+                    "cooperate with other ghost agents"
+                    moveScore = (ghostAction(gameState.generateSuccessor(numAgents - numGhosts, move), deepCounter, move, numGhosts-1, alpha, beta))[0] 
+                if moveScore < bestScore:
+                    bestMove = move
+                    bestScore = moveScore
+                if bestScore > beta or bestScore < alpha:
+                    break
+                beta = min(beta, bestScore)
+            return (bestScore, bestMove)
+
+    alpha = float('inf') * (-1)
+    beta = -1 * alpha        
+    if self.index == 0:
+        bestAction = (pacmanAction(gameState, self.depth, "", alpha, beta))[1]
+    else:
+        bestAction = (ghostAction(gameState, self.depth, "", alpha, beta))[1]
+    return bestAction
+    
+
+    
+    "util.raiseNotDefined()"
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
   """
@@ -153,9 +290,65 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
       legal moves.
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    
+    """check the max score in the next step for pacman agent.
+    parameters: gameState, deepCounter, lastMove
+    return: (bestScore, bestMove)
+    """
+    def pacmanAction(gameState, deepCounter, lastMove):
+        "if current state is win or lose or reach the deepest layer, return"
+        if gameState.isWin() or gameState.isLose() or deepCounter == 0:
+            return (self.evaluationFunction(gameState), lastMove)
+        else:
+            "initialize best score = -inf"
+            bestScore = float('inf') * (-1)
+            "get all legal moves"
+            moves = gameState.getLegalActions(self.index)
+            "find bestScore and corresponding bestMove"
+            for move in moves:
+                moveScore = (ghostAction(gameState.generateSuccessor(self.index, move), deepCounter, move, gameState.getNumAgents()-1))[0] 
+                if moveScore> bestScore:
+                    bestMove = move
+                    bestScore = moveScore
+            return (bestScore, bestMove) 
 
-def betterEvaluationFunction(currentGameState):
+    """check the min score in the next step around all ghost agents.
+    parameters: gameState, deepCounter, lastMove, numGhosts
+    return: (bestScore, bestMove)
+    """
+    def ghostAction(gameState, deepCounter, lastMove, numGhosts):
+        "if current state is win or lose or reach the deepest layer, return"
+        if gameState.isLose() or gameState.isWin() or deepCounter == 0:
+            return (self.evaluationFunction(gameState), lastMove)
+        else:
+            "initialize best score = inf"
+            bestScore = float('inf')
+            numAgents = gameState.getNumAgents()
+            "get legal actions for current ghost agent"
+            moves = gameState.getLegalActions(numAgents - numGhosts)
+            "find bestScore and corresponding bestMove for the current ghost agent"
+            totalScore = 0
+            bestMove = random.sample(moves, 1)[0]
+            for move in moves:
+                if numGhosts == 1:
+                    "compete with pacman agent"
+                    moveScore = (pacmanAction(gameState.generateSuccessor(numAgents - numGhosts, move), deepCounter-1, move))[0] 
+                else:
+                    "cooperate with other ghost agents"
+                    moveScore = (ghostAction(gameState.generateSuccessor(numAgents - numGhosts, move), deepCounter, move, numGhosts-1))[0] 
+                totalScore = totalScore + moveScore
+            bestScore = bestScore * 1.0 / len(moves)
+            return (bestScore, bestMove)
+        
+    if self.index == 0:
+        bestAction = (pacmanAction(gameState, self.depth, ""))[1]
+    else:
+        bestAction = (ghostAction(gameState, self.depth, ""))[1]
+    return bestAction
+    
+    "util.raiseNotDefined()"
+
+def betterEvaluationFunction(self, currentGameState, action):
   """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
     evaluation function (question 5).
@@ -163,7 +356,26 @@ def betterEvaluationFunction(currentGameState):
     DESCRIPTION: <write something here so we know what you did>
   """
   "*** YOUR CODE HERE ***"
-  util.raiseNotDefined()
+  successorGameState = currentGameState.generatePacmanSuccessor(action)
+  newPos = successorGameState.getPacmanPosition()
+  oldFood = currentGameState.getFood()
+  newGhostStates = successorGameState.getGhostStates()
+  newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
+  score = successorGameState.getScore()
+  newFood = successorGameState.getFood()
+  oldGhostStates = currentGameState.getGhostStates()
+  oldScaredTimes = [ghostState.scaredTimer for ghostState in oldGhostStates]
+  if len(newFood) < len(oldFood):
+      score = score + 1
+  newGhostPos = successorGameState.getGhostPositions()
+  newGhostDist = [util.manhattanDistance(newPos, ghost) for ghost in newGhostPos]
+  oldGhostPos = currentGameState.getGhostPositions()
+  oldGhostDist = [util.manhattanDistance(currentGameState.getPacmanPosition(), ghost) for ghost in oldGhostPos]
+  newClosestGhostDist = min(newGhostDist)
+  oldClosestGhostDist = min(oldGhostDist)
+  score = score + 5 * (newClosestGhostDist - oldClosestGhostDist)
+  return score
+  "util.raiseNotDefined()"
 
 # Abbreviation
 better = betterEvaluationFunction
